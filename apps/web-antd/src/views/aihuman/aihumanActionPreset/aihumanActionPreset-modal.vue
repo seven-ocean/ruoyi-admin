@@ -4,16 +4,15 @@
   </BasicDrawer>
 </template>
 
-
 <script setup lang="ts">
 import type { VbenFormProps } from '@vben/common-ui';
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useVbenForm, useVbenDrawer } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
-import { aihumanConfigAdd, aihumanConfigInfo, aihumanConfigUpdate } from '#/api/aihuman/aihumanConfig';
+import { aihumanActionPresetAdd, aihumanActionPresetInfo, aihumanActionPresetUpdate } from '#/api/aihuman/aihumanActionPreset';
 
 import { modalSchema } from './data';
 
@@ -37,15 +36,8 @@ const [BasicDrawer, drawerApi] = useVbenDrawer({
     isUpdate.value = !!id;
 
     if (isUpdate.value && id) {
-      const record = await aihumanConfigInfo(id);
-      const normalized = { ...record } as any;
-      if (normalized.status !== undefined && normalized.status !== null) {
-        normalized.status = String(normalized.status);
-      }
-      if (normalized.publish !== undefined && normalized.publish !== null) {
-        normalized.publish = String(normalized.publish);
-      }
-      formApi.setValues(normalized);
+      const record = await aihumanActionPresetInfo(id);
+      formApi.setValues(record);
     } else {
       formApi.resetForm();
     }
@@ -65,20 +57,11 @@ const [BasicForm, formApi] = useVbenForm({
   showDefaultActions: false,
 } as VbenFormProps);
 
-watch(() => isUpdate.value, (newVal) => {
-  formApi.updateSchema([
-    {
-      fieldName: 'id',
-      show: !!newVal,
-    },
-  ]);
-});
-
 async function handleConfirm() {
   try {
     drawerApi.drawerLoading(true);
     const values = await formApi.submitForm();
-    await (isUpdate.value ? aihumanConfigUpdate(values) : aihumanConfigAdd(values));
+    await (isUpdate.value ? aihumanActionPresetUpdate(values) : aihumanActionPresetAdd(values));
     emit('reload');
     await handleCancel();
   } catch (error) {

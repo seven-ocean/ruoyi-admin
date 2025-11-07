@@ -277,7 +277,7 @@ export const modalSchema: FormSchemaGetter = (formProps = {}) => {
         options: getDictOptions(AihumanRealConfigDict.sys_normal_disable),
         optionType: 'button',
       },
-      defaultValue: 0, // 改为数值类型
+      defaultValue: '0',
     },
     {
       fieldName: 'publish',
@@ -289,7 +289,7 @@ export const modalSchema: FormSchemaGetter = (formProps = {}) => {
         options: getDictOptions(AihumanRealConfigDict.aihuman_is_publish),
         optionType: 'button',
       },
-      defaultValue: 0, // 改为数值类型
+      defaultValue: '0',
     },
     // {
     //   fieldName: 'createDept',

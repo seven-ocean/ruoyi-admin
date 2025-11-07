@@ -4,7 +4,7 @@ import type { VbenFormProps } from '@vben/common-ui';
 import type { VxeGridProps } from '#/adapter/vxe-table';
 import type { AihumanRealConfigInfo } from '#/api/aihuman/aihumanRealConfig/types';
 
-import { Page, useVbenModal } from '@vben/common-ui';
+import { Page, useVbenDrawer } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 import { getVxePopupContainer } from '@vben/utils';
 
@@ -77,18 +77,18 @@ const [BasicTable, tableApi] = useVbenVxeGrid({
   gridOptions,
 });
 
-const [AihumanRealConfigModal, modalApi] = useVbenModal({
+const [AihumanRealConfigModal, drawerApi] = useVbenDrawer({
   connectedComponent: aihumanRealConfigModal,
 });
 
 function handleAdd() {
-  modalApi.setData({});
-  modalApi.open();
+  drawerApi.setData({});
+  drawerApi.open();
 }
 
 function handleEdit(row: AihumanRealConfigInfo) {
-  modalApi.setData({ id: row.id });
-  modalApi.open();
+  drawerApi.setData({ id: row.id });
+  drawerApi.open();
 }
 
 async function handleDelete(row: AihumanRealConfigInfo) {

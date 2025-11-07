@@ -2,12 +2,11 @@
 import type { VbenFormProps } from '@vben/common-ui';
 
 import type { VxeGridProps } from '#/adapter/vxe-table';
-import type { AihumanConfigInfo } from '#/api/aihuman/aihumanConfig/types';
+import type { AihumanKeywordInfo } from '#/api/aihuman/aihumanKeyword/types';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 import { getVxePopupContainer } from '@vben/utils';
-
 
 import {
   Dropdown,
@@ -20,17 +19,17 @@ import {
 
 import { useVbenVxeGrid, vxeCheckboxChecked } from '#/adapter/vxe-table';
 import {
-  aihumanConfigExport,
-  aihumanConfigList,
-  aihumanConfigRemove,
-} from '#/api/aihuman/aihumanConfig';
+  aihumanKeywordExport,
+  aihumanKeywordList,
+  aihumanKeywordRemove,
+} from '#/api/aihuman/aihumanKeyword';
 import { commonDownloadExcel } from '#/utils/file/download';
 
 import { columns, querySchema } from './data';
-import aihumanConfigModal from './aihumanConfig-modal.vue';
+import aihumanKeywordModal from './aihumanKeyword-modal.vue';
 
 defineOptions({
-  name: 'AihumanAihumanConfig',
+  name: 'AihumanAihumanKeyword',
 });
 
 const formOptions: VbenFormProps = {
@@ -56,7 +55,7 @@ const gridOptions: VxeGridProps = {
   proxyConfig: {
     ajax: {
       query: async ({ page }, formValues = {}) => {
-        return await aihumanConfigList({
+        return await aihumanKeywordList({
           pageNum: page.currentPage,
           pageSize: page.pageSize,
           ...formValues,
@@ -67,7 +66,7 @@ const gridOptions: VxeGridProps = {
   rowConfig: {
     keyField: 'id',
   },
-  id: 'aihuman-aihumanConfig-index',
+  id: 'aihuman-aihumanKeyword-index',
 };
 
 const [BasicTable, tableApi] = useVbenVxeGrid({
@@ -75,8 +74,8 @@ const [BasicTable, tableApi] = useVbenVxeGrid({
   gridOptions,
 });
 
-const [AihumanConfigModal, drawerApi] = useVbenDrawer({
-  connectedComponent: aihumanConfigModal,
+const [AihumanKeywordModal, drawerApi] = useVbenDrawer({
+  connectedComponent: aihumanKeywordModal,
 });
 
 function handleAdd() {
@@ -84,25 +83,25 @@ function handleAdd() {
   drawerApi.open();
 }
 
-function handleEdit(row: AihumanConfigInfo) {
+function handleEdit(row: AihumanKeywordInfo) {
   drawerApi.setData({ id: row.id });
   drawerApi.open();
 }
 
-async function handleDelete(row: AihumanConfigInfo) {
-  await aihumanConfigRemove([row.id]);
+async function handleDelete(row: AihumanKeywordInfo) {
+  await aihumanKeywordRemove([row.id]);
   await tableApi.query();
 }
 
 function handleMultiDelete() {
   const rows = tableApi.grid.getCheckboxRecords();
-  const ids = rows.map((row: AihumanConfigInfo) => row.id);
+  const ids = rows.map((row: AihumanKeywordInfo) => row.id);
   Modal.confirm({
     title: '提示',
     okType: 'danger',
     content: `确认删除选中的${ids.length}条记录吗？`,
     onOk: async () => {
-      await aihumanConfigRemove(ids);
+      await aihumanKeywordRemove(ids);
       await tableApi.query();
     },
   });
@@ -110,7 +109,7 @@ function handleMultiDelete() {
 
 function handleDownloadExcel() {
   const formValues = tableApi.formApi.form.values;
-  commonDownloadExcel(aihumanConfigExport, '交互数字人配置数据', formValues, {
+  commonDownloadExcel(aihumanKeywordExport, '关键词管理子表数据', formValues, {
     fieldMappingTime: formOptions.fieldMappingTime,
   });
 }
@@ -119,11 +118,11 @@ function handleDownloadExcel() {
 <template>
   <Page :auto-content-height="true">
     <div class="flex h-full gap-[8px]">
-      <BasicTable class="overflow-hidden flex-1" table-title="交互数字人配置列表">
+      <BasicTable class="overflow-hidden flex-1" table-title="关键词管理子表列表">
         <template #toolbar-tools>
           <Space>
             <a-button
-              v-access:code="['aihuman:aihumanConfig:export']"
+              v-access:code="['aihuman:aihumanKeyword:export']"
               @click="handleDownloadExcel"
             >
               {{ $t('pages.common.export') }}
@@ -132,14 +131,14 @@ function handleDownloadExcel() {
               :disabled="!vxeCheckboxChecked(tableApi)"
               danger
               type="primary"
-              v-access:code="['aihuman:aihumanConfig:remove']"
+              v-access:code="['aihuman:aihumanKeyword:remove']"
               @click="handleMultiDelete"
             >
               {{ $t('pages.common.delete') }}
             </a-button>
             <a-button
               type="primary"
-              v-access:code="['aihuman:aihumanConfig:add']"
+              v-access:code="['aihuman:aihumanKeyword:add']"
               @click="handleAdd"
             >
               {{ $t('pages.common.add') }}
@@ -149,7 +148,7 @@ function handleDownloadExcel() {
         <template #action="{ row }">
           <Space>
             <ghost-button
-              v-access:code="['aihuman:aihumanConfig:edit']"
+              v-access:code="['aihuman:aihumanKeyword:edit']"
               @click.stop="handleEdit(row)"
             >
               {{ $t('pages.common.edit') }}
@@ -162,7 +161,7 @@ function handleDownloadExcel() {
             >
               <ghost-button
                 danger
-                v-access:code="['aihuman:aihumanConfig:remove']"
+                v-access:code="['aihuman:aihumanKeyword:remove']"
                 @click.stop=""
               >
                 {{ $t('pages.common.delete') }}
@@ -172,6 +171,6 @@ function handleDownloadExcel() {
         </template>
       </BasicTable>
     </div>
-    <AihumanConfigModal @reload="tableApi.query()" />
+    <AihumanKeywordModal @reload="tableApi.query()" />
   </Page>
 </template>

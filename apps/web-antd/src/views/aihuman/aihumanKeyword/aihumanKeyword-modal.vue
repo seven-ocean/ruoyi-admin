@@ -4,16 +4,16 @@
   </BasicDrawer>
 </template>
 
-
 <script setup lang="ts">
 import type { VbenFormProps } from '@vben/common-ui';
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useVbenForm, useVbenDrawer } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
-import { aihumanConfigAdd, aihumanConfigInfo, aihumanConfigUpdate } from '#/api/aihuman/aihumanConfig';
+import { aihumanKeywordAdd, aihumanKeywordInfo, aihumanKeywordUpdate } from '#/api/aihuman/aihumanKeyword';
+import { aihumanActionPresetList } from '#/api/aihuman/AihumanActionPreset';
 
 import { modalSchema } from './data';
 
@@ -33,21 +33,45 @@ const [BasicDrawer, drawerApi] = useVbenDrawer({
     }
     drawerApi.drawerLoading(true);
 
-    const { id } = drawerApi.getData() as { id?: number | string };
+    const { id, actionId, actionCode } = drawerApi.getData() as { id?: number | string; actionId?: number | string; actionCode?: string };
     isUpdate.value = !!id;
 
+    const actionResp = await aihumanActionPresetList({ pageNum: 1, pageSize: 999 });
+    const options = (actionResp?.rows ?? []).map((item: any) => ({ label: item.name, value: item.actionCode, id: item.id }));
+    formApi.updateSchema([
+      {
+        fieldName: 'actionSelect',
+        componentProps: {
+          options,
+          showSearch: true,
+          optionFilterProp: 'label',
+          onChange: (val: string) => {
+            const found = options.find((o: any) => o.value === val);
+            formApi.setFieldValue('actionCode', found?.value);
+            formApi.setFieldValue('actionId', found?.id);
+          },
+        },
+      },
+    ]);
+
     if (isUpdate.value && id) {
-      const record = await aihumanConfigInfo(id);
+      const record = await aihumanKeywordInfo(id);
       const normalized = { ...record } as any;
-      if (normalized.status !== undefined && normalized.status !== null) {
-        normalized.status = String(normalized.status);
-      }
-      if (normalized.publish !== undefined && normalized.publish !== null) {
-        normalized.publish = String(normalized.publish);
+      // 初始化动作选择器显示
+      if (normalized.actionCode) {
+        normalized.actionSelect = normalized.actionCode;
       }
       formApi.setValues(normalized);
     } else {
       formApi.resetForm();
+      // 新增时根据传入的动作上下文自动补全
+      if (actionCode) {
+        formApi.setFieldValue('actionCode', actionCode);
+        formApi.setFieldValue('actionSelect', actionCode);
+      }
+      if (actionId) {
+        formApi.setFieldValue('actionId', actionId);
+      }
     }
 
     drawerApi.drawerLoading(false);
@@ -65,20 +89,11 @@ const [BasicForm, formApi] = useVbenForm({
   showDefaultActions: false,
 } as VbenFormProps);
 
-watch(() => isUpdate.value, (newVal) => {
-  formApi.updateSchema([
-    {
-      fieldName: 'id',
-      show: !!newVal,
-    },
-  ]);
-});
-
 async function handleConfirm() {
   try {
     drawerApi.drawerLoading(true);
     const values = await formApi.submitForm();
-    await (isUpdate.value ? aihumanConfigUpdate(values) : aihumanConfigAdd(values));
+    await (isUpdate.value ? aihumanKeywordUpdate(values) : aihumanKeywordAdd(values));
     emit('reload');
     await handleCancel();
   } catch (error) {

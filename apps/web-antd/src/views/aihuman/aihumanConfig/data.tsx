@@ -5,7 +5,6 @@ import { AihumanConfigDict } from '#/api/aihuman/AihumanConfig/types';
 import { getDictOptions } from '#/utils/dict';
 import { renderDict } from '#/utils/render';
 
-
 export const querySchema: FormSchemaGetter = () => [
 
   {
@@ -211,7 +210,7 @@ export const modalSchema: FormSchemaGetter = () => [
       rules: 'required',
       componentProps: {
          buttonStyle: 'solid',
-        options:  getDictOptions(AihumanConfigDict.sys_normal_disable),
+        options: getDictOptions(AihumanConfigDict.sys_normal_disable),
         optionType: 'button',
       },
       defaultValue: '0',
@@ -224,7 +223,7 @@ export const modalSchema: FormSchemaGetter = () => [
       rules: 'required',
       componentProps: {
          buttonStyle: 'solid',
-        options:  getDictOptions(AihumanConfigDict.aihuman_is_publish),
+        options: getDictOptions(AihumanConfigDict.aihuman_is_publish),
         optionType: 'button',
       },
       defaultValue: '0',

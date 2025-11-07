@@ -1,7 +1,7 @@
 <template>
-  <BasicModal :title="title">
+  <BasicDrawer :close-on-click-modal="false" :title="title" class="w-[600px]">
     <BasicForm />
-  </BasicModal>
+  </BasicDrawer>
 </template>
 
 <script setup lang="ts">
@@ -9,7 +9,7 @@ import type { VbenFormProps } from '@vben/common-ui';
 
 import { computed, ref } from 'vue';
 
-import { useVbenForm, useVbenModal } from '@vben/common-ui';
+import { useVbenForm, useVbenDrawer } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
 import { aihumanRealConfigAdd, aihumanRealConfigInfo, aihumanRealConfigUpdate } from '#/api/aihuman/aihumanRealConfig';
@@ -23,29 +23,33 @@ const title = computed(() => {
   return isUpdate.value ? $t('pages.common.edit') : $t('pages.common.add');
 });
 
-const [BasicModal, modalApi] = useVbenModal({
-  class: 'w-[550px]',
-  fullscreenButton: false,
-  closeOnClickModal: false,
-  onClosed: handleCancel,
+const [BasicDrawer, drawerApi] = useVbenDrawer({
+  onCancel: handleCancel,
   onConfirm: handleConfirm,
-  onOpenChange: async (isOpen) => {
+  async onOpenChange(isOpen) {
     if (!isOpen) {
       return null;
     }
-    modalApi.modalLoading(true);
+    drawerApi.drawerLoading(true);
 
-    const { id } = modalApi.getData() as { id?: number | string };
+    const { id } = drawerApi.getData() as { id?: number | string };
     isUpdate.value = !!id;
 
     if (isUpdate.value && id) {
       const record = await aihumanRealConfigInfo(id);
-      formApi.setValues(record);
+      const normalized = { ...record } as any;
+      if (normalized.status !== undefined && normalized.status !== null) {
+        normalized.status = String(normalized.status);
+      }
+      if (normalized.publish !== undefined && normalized.publish !== null) {
+        normalized.publish = String(normalized.publish);
+      }
+      formApi.setValues(normalized);
     } else {
       formApi.resetForm();
     }
 
-    modalApi.modalLoading(false);
+    drawerApi.drawerLoading(false);
   },
 });
 
@@ -63,12 +67,17 @@ const [BasicForm, formApi] = useVbenForm({
 // 监听isUpdate变化，更新表单schema
 import { watch } from 'vue';
 watch(() => isUpdate.value, (newVal) => {
-  formApi.setFields(modalSchema());
+  formApi.updateSchema([
+    {
+      fieldName: 'id',
+      show: !!newVal,
+    },
+  ]);
 });
 
 async function handleConfirm() {
   try {
-    modalApi.modalLoading(true);
+    drawerApi.drawerLoading(true);
     const values = await formApi.submitForm();
     await (isUpdate.value ? aihumanRealConfigUpdate(values) : aihumanRealConfigAdd(values));
     emit('reload');
@@ -76,12 +85,12 @@ async function handleConfirm() {
   } catch (error) {
     console.error(error);
   } finally {
-    modalApi.modalLoading(false);
+    drawerApi.drawerLoading(false);
   }
 }
 
 async function handleCancel() {
-  await modalApi.close();
+  await drawerApi.close();
   formApi.resetForm();
 }
 </script>
