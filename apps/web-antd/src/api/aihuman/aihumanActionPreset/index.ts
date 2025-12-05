@@ -2,13 +2,14 @@ import type { AihumanActionPresetInfo as AihumanActionPreset, AihumanActionPrese
 
 import type { ID, IDS, PageQuery, PageResult } from '#/api/common';
 
-import { commonExport } from '#/api/helper';
+import { commonExport, ContentTypeEnum } from '#/api/helper';
 import { requestClient } from '#/api/request';
 
 enum Api {
   root = '/aihuman/aihumanActionPreset',
   list = '/aihuman/aihumanActionPreset/list',
   export = '/aihuman/aihumanActionPreset/export',
+  asr = '/aihuman/aihumanActionPreset/asr',
 }
 
 /**
@@ -77,4 +78,31 @@ export function aihumanActionPresetSaveOrUpdate(data: Partial<AihumanActionPrese
   } else {
     return aihumanActionPresetAdd(data);
   }
+}
+
+/**
+ * ASR识别 - 上传音频文件
+ * @param id 动作ID
+ * @param file 音频文件Blob/File
+ */
+export function aihumanActionPresetAsrFile(id: ID, file: Blob | File) {
+  const form = new FormData();
+  form.append('audio', file);
+  return requestClient.postWithMsg<string>(`${Api.asr}/${id}`, form, {
+    headers: { 'Content-Type': ContentTypeEnum.FORM_DATA },
+    timeout: 30 * 1000,
+  });
+}
+
+/**
+ * ASR识别 - 上传Base64音频
+ * @param id 动作ID
+ * @param audioBase64 base64字符串
+ */
+export function aihumanActionPresetAsrBase64(id: ID, audioBase64: string) {
+  const body = new URLSearchParams();
+  body.set('audioBase64', audioBase64);
+  return requestClient.post<string>(`${Api.asr}/${id}`, body, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
 }

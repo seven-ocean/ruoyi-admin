@@ -3,7 +3,7 @@ import type { VxeGridProps } from '#/adapter/vxe-table';
 
 import { AihumanActionPresetDict } from '#/api/aihuman/AihumanActionPreset/types';
 import { getDictOptions } from '#/utils/dict';
-import { renderDict } from '#/utils/render';
+import { renderDict, renderJsonPreview } from '#/utils/render';
 
 export const querySchema: FormSchemaGetter = () => [
 
@@ -91,6 +91,12 @@ export const columns: VxeGridProps['columns'] = [
   {
     title: '参数结构(JSON Schema)',
     field: 'paramsSchema',
+    width: 360,
+    slots: {
+      default: ({ row }) => {
+        return renderJsonPreview(row.paramsSchema);
+      },
+    },
   },
 
   {
@@ -187,8 +193,13 @@ export const modalSchema: FormSchemaGetter = () => [
       component: 'Textarea',
       label: 'ASR接口参数',
       help: '(JSON Schema)',
+      formItemClass: 'items-start',
+      renderComponentContent: (model) => ({
+        default: () => renderJsonPreview(model.paramsSchema),
+      }),
       componentProps: {
-        style: { height: '300px' },
+        disabled: false,
+        style: { minHeight: '220px', maxHeight: '400px', overflow: 'auto' },
       },
     },
 

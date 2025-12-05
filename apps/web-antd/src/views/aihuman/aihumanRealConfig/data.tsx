@@ -274,7 +274,10 @@ export const modalSchema: FormSchemaGetter = (formProps = {}) => {
       rules: 'required',
       componentProps: {
         buttonStyle: 'solid',
-        options: getDictOptions(AihumanRealConfigDict.sys_normal_disable),
+        options: getDictOptions(AihumanRealConfigDict.sys_normal_disable).map((opt: any) => ({
+          ...opt,
+          value: String(opt.value),
+        })),
         optionType: 'button',
       },
       defaultValue: '0',
@@ -286,12 +289,15 @@ export const modalSchema: FormSchemaGetter = (formProps = {}) => {
       rules: 'required',
       componentProps: {
         buttonStyle: 'solid',
-        options: getDictOptions(AihumanRealConfigDict.aihuman_is_publish),
+        options: getDictOptions(AihumanRealConfigDict.aihuman_is_publish).map((opt: any) => ({
+          ...opt,
+          value: String(opt.value),
+        })),
         optionType: 'button',
       },
       defaultValue: '0',
     },
-    // {
+  // {
     //   fieldName: 'createDept',
     //   component: 'Input',
     //   label: '创建部门',

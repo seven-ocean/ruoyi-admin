@@ -3,7 +3,7 @@ import type { VxeGridProps } from '#/adapter/vxe-table';
 
 import { AihumanConfigDict } from '#/api/aihuman/AihumanConfig/types';
 import { getDictOptions } from '#/utils/dict';
-import { renderDict } from '#/utils/render';
+import { renderDict, renderJsonPreview } from '#/utils/render';
 
 export const querySchema: FormSchemaGetter = () => [
 
@@ -74,8 +74,10 @@ export const querySchema: FormSchemaGetter = () => [
     fieldName: 'publish',
     label: '发布状态',
     componentProps: {
-      options:  getDictOptions(AihumanConfigDict.aihuman_is_publish),
-
+      options: getDictOptions(AihumanConfigDict.aihuman_is_publish).map((opt: any) => ({
+        ...opt,
+        value: String(opt.value),
+      })),
     },
   },
 
@@ -107,6 +109,15 @@ export const columns: VxeGridProps['columns'] = [
   {
     title: '智能体参数',
     field: 'agentParams',
+  },
+
+  {
+    title: '动作参数绑定',
+    field: 'actionParams',
+    width: 200,
+    slots: {
+      default: ({ row }) => renderJsonPreview(row.actionParams),
+    },
   },
 
   {
@@ -184,6 +195,11 @@ export const modalSchema: FormSchemaGetter = () => [
       label: '智能体参数',
     },
     {
+      fieldName: 'actionParams',
+      component: 'Textarea',
+      label: '动作参数绑定',
+    },
+    {
       fieldName: 'createTime',
       component: 'DatePicker',
       label: '创建时间',
@@ -209,12 +225,14 @@ export const modalSchema: FormSchemaGetter = () => [
       label: '状态',
       rules: 'required',
       componentProps: {
-         buttonStyle: 'solid',
-        options: getDictOptions(AihumanConfigDict.sys_normal_disable),
+        buttonStyle: 'solid',
+        options: getDictOptions(AihumanConfigDict.sys_normal_disable).map((opt: any) => ({
+          ...opt,
+          value: String(opt.value),
+        })),
         optionType: 'button',
       },
       defaultValue: '0',
-
     },
     {
       fieldName: 'publish',
@@ -222,8 +240,11 @@ export const modalSchema: FormSchemaGetter = () => [
       label: '发布状态',
       rules: 'required',
       componentProps: {
-         buttonStyle: 'solid',
-        options: getDictOptions(AihumanConfigDict.aihuman_is_publish),
+        buttonStyle: 'solid',
+        options: getDictOptions(AihumanConfigDict.aihuman_is_publish).map((opt: any) => ({
+          ...opt,
+          value: String(opt.value),
+        })),
         optionType: 'button',
       },
       defaultValue: '0',

@@ -8,7 +8,7 @@ import type { AihumanPublishInfo } from '#/api/aihuman/aihumanPublish/types';
 import { ref, computed, watch, onMounted } from 'vue';
 import { Page } from '@vben/common-ui';
 import { $t } from '@vben/locales';
-import { Space, Button, Select, Input, Radio, message, Slider } from 'ant-design-vue';
+import { Space, Button, Select, Input, Radio, message, Slider, Popover } from 'ant-design-vue';
 import axios from 'axios';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
@@ -19,6 +19,8 @@ import { aihumanPublishList,generateVoiceWithVolcengine } from '#/api/aihuman/ai
 
 import { columns, querySchema } from './data';
 import Live2DViewer from './Live2DViewer.vue';
+import { aihumanConfigAsrFile } from '#/api/aihuman/aihumanConfig'
+import { aihumanKeywordListByActionCode } from '#/api/aihuman/aihumanKeyword'
 
 defineOptions({
   name: 'AihumanAihumanPublish',
@@ -44,6 +46,31 @@ const modelScale = ref<number>(0.6);
 
 // 添加模型名称映射，存储场景名称到模型名称的对应关系
 const nameToModelMap = ref<Record<string, string>>({});
+const nameToIdMap = ref<Record<string, number>>({});
+const currentActionParams = ref<any>(null)
+const asrVisible = ref(false)
+const recording = ref(false)
+const asrResult = ref('')
+const asrData = ref<any>(null)
+const targetId = ref<number>(0)
+const recognizedText = ref('')
+const matchedActionCode = ref('')
+const matchedActionName = ref('')
+const matchedKeywords = ref<any[]>([])
+const displayKeywords = computed(() => {
+  const list = matchedKeywords.value || []
+  if (list.length <= 2) return list
+  return [...list.slice(0, 2), { id: '__ellipsis__', keyword: '...' }]
+})
+const expressionName = ref('')
+const expressionPlatform = ref('')
+let audioCtx: AudioContext | null = null
+let source: MediaStreamAudioSourceNode | null = null
+let processor: ScriptProcessorNode | null = null
+let inputSampleRate = 48000
+let recordedChunks: Float32Array[] = []
+let totalSamples = 0
+let currentStream: MediaStream | null = null
 // 添加默认模型路径变量
 const defaultModelPath = ref<string>('');
 
@@ -150,6 +177,200 @@ const [BasicTable, tableApi] = useVbenVxeGrid({
   formOptions,
   gridOptions,
 });
+
+const openAsrFloat = async () => {
+  const id = nameToIdMap.value[selectedModel.value] as number
+  if (!id) return
+  targetId.value = id
+  asrVisible.value = true
+  await startHold()
+}
+
+const stopAsrHold = async () => {
+  await stopHold()
+}
+
+async function startHold() {
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    inputSampleRate = audioCtx.sampleRate || 48000
+    source = audioCtx.createMediaStreamSource(currentStream)
+    processor = audioCtx.createScriptProcessor(4096, 1, 1)
+    recordedChunks = []
+    totalSamples = 0
+    processor.onaudioprocess = (event) => {
+      const input = event.inputBuffer.getChannelData(0)
+      recordedChunks.push(new Float32Array(input))
+      totalSamples += input.length
+    }
+    source.connect(processor)
+    processor.connect(audioCtx.destination)
+    recording.value = true
+  } catch {}
+}
+
+async function stopHold() {
+  if (!recording.value) return
+  recording.value = false
+  try {
+    if (processor) processor.disconnect()
+    if (source) source.disconnect()
+    if (audioCtx) await audioCtx.close()
+    if (currentStream) currentStream.getTracks().forEach((t) => t.stop())
+    if (!totalSamples) return
+    const merged = mergeFloat32(recordedChunks, totalSamples)
+    const pcm16 = downsampleTo16kPCM16(merged, inputSampleRate)
+    const wavBlob = encodeWAV(pcm16, 16000)
+    await submitWav(wavBlob)
+  } catch {}
+}
+
+async function submitWav(wavBlob: Blob) {
+  try {
+    const file = new File([wavBlob], 'voice.wav', { type: 'audio/wav' })
+    const resp = await aihumanConfigAsrFile(targetId.value, file)
+    if (typeof resp === 'string') {
+      try {
+        const parsed = JSON.parse(resp)
+        asrData.value = parsed?.data ?? parsed
+        asrResult.value = ''
+      } catch {
+        asrResult.value = resp
+        asrData.value = null
+      }
+    } else {
+      asrData.value = resp
+      asrResult.value = ''
+    }
+    if (asrData.value && (asrData.value as any).data) {
+      asrData.value = (asrData.value as any).data
+    }
+    asrVisible.value = true
+    updateRecognitionView()
+    await loadKeywordsByActionCode()
+    triggerExpressionFromAsr()
+    triggerMotionFromAsr()
+  } catch {}
+}
+
+function updateRecognitionView() {
+  const payload = asrData.value
+  if (!payload) {
+    recognizedText.value = asrResult.value || ''
+    matchedActionCode.value = ''
+    matchedActionName.value = ''
+    matchedKeywords.value = []
+    return
+  }
+  const d = (payload as any).data ? (payload as any).data : payload
+  recognizedText.value = d.result || ''
+  matchedActionCode.value = d.match_action_code || ''
+  matchedActionName.value = d.match_action_name || ''
+  expressionName.value = d.expression_name || ''
+  expressionPlatform.value = d.expression_platform || ''
+}
+
+async function loadKeywordsByActionCode() {
+  matchedKeywords.value = []
+  if (!matchedActionCode.value) return
+  try {
+    const list = await aihumanKeywordListByActionCode(matchedActionCode.value)
+    matchedKeywords.value = Array.isArray(list) ? list : (list?.rows ?? [])
+  } catch {}
+}
+
+function triggerExpressionFromAsr() {
+  try {
+    const payload = asrData.value
+    if (!payload) return
+    const d = (payload as any).data ? (payload as any).data : payload
+    const matchCode = d.match_action_code
+    if (!matchCode || !currentActionParams.value || !Array.isArray(currentActionParams.value.Expressions)) return
+    const found = currentActionParams.value.Expressions.find((e: any) => e.action_code === matchCode)
+    if (found && found.Name) {
+      playExpression(found.Name)
+    }
+  } catch {}
+}
+
+function triggerMotionFromAsr() {
+  try {
+    const payload = asrData.value
+    if (!payload) return
+    const d = (payload as any).data ? (payload as any).data : payload
+    const motionName = d.motions_name
+    if (!motionName) return
+    const motions = currentActionParams.value?.Motions
+    if (Array.isArray(motions)) {
+      const found = motions.find((m: any) => m.Name === motionName)
+      if (found) {
+        playMotion(motionName)
+      }
+    } else {
+      playMotion(motionName)
+    }
+  } catch {}
+}
+
+function mergeFloat32(list: Float32Array[], totalLength: number): Float32Array {
+  const result = new Float32Array(totalLength)
+  let offset = 0
+  for (const chunk of list) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  return result
+}
+
+function downsampleTo16kPCM16(buffer: Float32Array, sampleRate: number): Int16Array {
+  const ratio = sampleRate / 16000
+  const newLength = Math.round(buffer.length / ratio)
+  const result = new Int16Array(newLength)
+  let offsetResult = 0
+  let offsetBuffer = 0
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio)
+    let accum = 0
+    let count = 0
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i]
+      count++
+    }
+    const sample = accum / (count || 1)
+    result[offsetResult] = Math.max(-1, Math.min(1, sample)) * 0x7fff
+    offsetResult++
+    offsetBuffer = nextOffsetBuffer
+  }
+  return result
+}
+
+function encodeWAV(pcm16: Int16Array, sampleRate: number): Blob {
+  const dataSize = pcm16.length * 2
+  const buffer = new ArrayBuffer(44 + dataSize)
+  const view = new DataView(buffer)
+  function writeStr(offset: number, str: string) {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+  }
+  writeStr(0, 'RIFF')
+  view.setUint32(4, 36 + dataSize, true)
+  writeStr(8, 'WAVE')
+  writeStr(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  writeStr(36, 'data')
+  view.setUint32(40, dataSize, true)
+  let offset = 44
+  for (let i = 0; i < pcm16.length; i++, offset += 2) {
+    view.setInt16(offset, pcm16[i], true)
+  }
+  return new Blob([view], { type: 'audio/wav' })
+}
 
 // 从API获取指定模型的配置参数
 const fetchConfigParams = async (modelName?: string) => {
@@ -303,6 +524,16 @@ const fetchConfigParams = async (modelName?: string) => {
         }
       }
     }
+    // 解析动作参数绑定
+    if (targetConfig.actionParams) {
+      try {
+        currentActionParams.value = JSON.parse(targetConfig.actionParams)
+      } catch (e) {
+        currentActionParams.value = null
+      }
+    } else {
+      currentActionParams.value = null
+    }
   } catch (error) {
     console.error('获取配置参数失败:', error);
     message.error('获取配置参数失败，使用默认配置');
@@ -366,6 +597,8 @@ const initModelList = async () => {
 
       // 修改这里：存储场景名称到模型路径的映射，而不是模型名称
       nameToModelMap.value[item.name] = item.modelPath;
+      nameToIdMap.value[item.name] = item.id as number;
+      nameToIdMap.value[item.name] = item.id as number;
     });
 
     // 确保数组不为空再赋值
@@ -930,9 +1163,34 @@ initModelList();
       <!-- 左侧显示控制面板 -->
       <div class="w-1/3 overflow-hidden border border-gray-200 rounded bg-white">
         <div id="control" class="p-4">
-          <Button @click="handleTestAudio">讲话测试</Button>
+          
+          <Button type="primary" @click="handleTestAudio">讲话测试</Button>&nbsp;&nbsp;
+          <Popover v-model:open="asrVisible" placement="right">
+            <template #content>
+              <div class="p-2 border rounded w-[260px] min-h-[160px] max-h-[280px] overflow-auto">
+                <div v-if="recording" class="text-red-500 mb-1">录音中… 松开结束</div>
+                <div class="text-xs mb-1">识别：{{ recognizedText || '—' }}</div>
+                <div class="text-xs mb-1">动作：{{ matchedActionName || '—' }} <span v-if="matchedActionCode">({{ matchedActionCode }})</span></div>
+                <div class="text-xs mb-1">表达：{{ expressionName || '—' }} <span v-if="expressionPlatform">({{ expressionPlatform }})</span></div>
+                <div class="text-xs mb-1">关键词：</div>
+                <div class="flex flex-col gap-1 max-h-[100px] overflow-auto">
+                  <div v-for="item in displayKeywords" :key="item.id" class="border rounded px-2 py-1 text-xs">{{ item.keyword }}</div>
+                  <div v-if="!matchedKeywords.length" class="text-xs opacity-60">暂无关键词</div>
+                </div>
+                <div class="text-right mt-2">
+                  <Button size="small" @click="asrVisible=false">关闭</Button>
+                </div>
+              </div>
+            </template>
+            <Button type="primary" danger @pointerdown.prevent="openAsrFloat" @pointerup.prevent="stopAsrHold" @mouseleave="stopAsrHold">
+              <template #icon>
+                <a-icon type="ion--mic-outline" />
+              </template>
+              语音交互
+            </Button>
+          </Popover>
           <br /><br />
-
+          
           <label>选择已发布场景：</label>
           <select v-model="selectedModel" id="model_list" class="ml-2"></select>
           <Button @click="handleUpdateModel" class="ml-2">更新场景</Button>
@@ -1061,6 +1319,8 @@ initModelList();
       </div>
 
     </div>
+    <AsrDrawer />
+    
   </Page>
 </template>
 

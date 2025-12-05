@@ -37,7 +37,18 @@ const [BasicDrawer, drawerApi] = useVbenDrawer({
 
     if (isUpdate.value && id) {
       const record = await aihumanActionPresetInfo(id);
-      formApi.setValues(record);
+      const normalized = { ...record } as any;
+      if (normalized.paramsSchema) {
+        try {
+          const obj = typeof normalized.paramsSchema === 'string'
+            ? JSON.parse(normalized.paramsSchema)
+            : normalized.paramsSchema;
+          normalized.paramsSchema = JSON.stringify(obj, null, 2);
+        } catch {
+          // keep original
+        }
+      }
+      formApi.setValues(normalized);
     } else {
       formApi.resetForm();
     }

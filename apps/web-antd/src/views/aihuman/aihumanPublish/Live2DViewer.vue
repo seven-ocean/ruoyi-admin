@@ -30,6 +30,7 @@ const internalEyeMode = ref(props.eyeMode || 'true');
 const configData = ref<AihumanPublishInfo[]>([]);
 // 默认缩放比例为0.6
 const modelScale = ref(0.6);
+let fitScaleBase = 1;
 
 // 监听props变化，更新内部状态
 watch(() => props.eyeMode, (newValue) => {
@@ -263,8 +264,8 @@ const updateModel = async (modelPath: string) => {
       newModel.x = window.innerWidth / 16;
       draggable(newModel);
       model4 = newModel;
-      // 设置默认缩放比例 改为 应用当前的缩放比例
       model4.scale.set(Math.min(scaleX, scaleY) * modelScale.value);
+      fitScaleBase = Math.min(scaleX, scaleY);
     }
   } catch (error) {
     console.error('更新模型失败:', error);
@@ -283,27 +284,17 @@ const updateEyeMode = (mode: string) => {
 // 添加方法用于更新模型缩放比例
 const updateModelScale = (scaleFactor: number) => {
   if (model4) {
-    const scaleX = window.innerWidth / model4.width;
-    const scaleY = window.innerHeight / model4.height;
-    model4.scale.set(Math.min(scaleX, scaleY) * scaleFactor);
+    model4.scale.set(fitScaleBase * scaleFactor);
   }
 };
 
 // 修改调整模型大小的方法，从接受增量改为接受绝对值
 const adjustModelSize = (scaleFactor: number) => {
-  console.log('接收到的缩放因子:', scaleFactor);
-  // 直接设置缩放比例，限制在合理范围内
   modelScale.value = Math.max(0.1, Math.min(2.0, scaleFactor));
-  console.log('处理后的缩放比例:', modelScale.value);
-
-  // 如果模型已初始化，应用新的缩放比例并保持居中
   if (model4 && app) {
-    // 使用固定的基准缩放值，确保与滑块值成线性关系
-    const baseScale = 0.6; // 基准缩放值
-    const finalScale = baseScale * modelScale.value;
-    console.log('最终应用的缩放值:', finalScale);
+    const finalScale = fitScaleBase * modelScale.value;
     model4.scale.set(finalScale);
-    centerModel(); // 调用居中方法，确保每次缩放后模型都居中
+    centerModel();
   }
 };
 
@@ -422,3 +413,4 @@ onBeforeUnmount(() => {
   background-color: #ffffff; /* 白色背景 */
 }
 </style>
+    fitScaleBase = model4.scale.x / modelScale.value;

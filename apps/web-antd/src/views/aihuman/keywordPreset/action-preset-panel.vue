@@ -11,6 +11,7 @@ import { commonDownloadExcel } from '#/utils/file/download'
 import { getVxePopupContainer } from '@vben/utils'
 import { columns, querySchema } from '../aihumanActionPreset/data'
 import aihumanActionPresetModal from '../aihumanActionPreset/aihumanActionPreset-modal.vue'
+import AsrDialog from './asr-dialog.vue'
 import { emitter } from './mitt'
 
 const formOptions: VbenFormProps = {
@@ -75,6 +76,7 @@ const [BasicTable, tableApi] = useVbenVxeGrid({
 })
 
 const [ActionPresetDrawer, drawerApi] = useVbenDrawer({ connectedComponent: aihumanActionPresetModal })
+const [AsrDrawer, asrDrawerApi] = useVbenDrawer({ connectedComponent: AsrDialog })
 
 function handleAdd() {
   drawerApi.setData({})
@@ -84,6 +86,11 @@ function handleAdd() {
 function handleEdit(row: AihumanActionPresetInfo) {
   drawerApi.setData({ id: row.id })
   drawerApi.open()
+}
+
+function handleAsr(row: AihumanActionPresetInfo) {
+  asrDrawerApi.setData({ id: row.id, actionCode: row.actionCode })
+  asrDrawerApi.open()
 }
 
 async function handleDelete(row: AihumanActionPresetInfo) {
@@ -123,6 +130,7 @@ function handleDownloadExcel() {
       </template>
       <template #action="{ row }">
         <Space>
+          <ghost-button @click.stop="handleAsr(row)">ASR 识别</ghost-button>
           <ghost-button @click.stop="handleEdit(row)">编辑</ghost-button>
           <Popconfirm :get-popup-container="(node) => getVxePopupContainer(node, 'action-preset')" placement="left" title="确认删除？" @confirm="handleDelete(row)">
             <ghost-button danger @click.stop="">删除</ghost-button>
@@ -131,5 +139,6 @@ function handleDownloadExcel() {
       </template>
     </BasicTable>
     <ActionPresetDrawer @reload="tableApi.query()" />
+    <AsrDrawer />
   </div>
 </template>

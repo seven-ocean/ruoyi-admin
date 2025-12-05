@@ -30,6 +30,9 @@ export interface AihumanConfigQueryParams {
   /** agentParams */
   agentParams?: string;
 
+  /** actionParams */
+  actionParams?: string;
+
   /** createTime */
   createTime?: string;
 
@@ -71,6 +74,9 @@ export interface AihumanConfigInfo {
   /** agentParams */
   agentParams?: string;
 
+  /** actionParams */
+  actionParams?: string;
+
   /** createTime */
   createTime?: string;
 
@@ -104,6 +110,9 @@ export interface AihumanConfigFormData {
 
   /** agentParams */
   agentParams?: string;
+
+  /** actionParams */
+  actionParams?: string;
 
   /** createTime */
   createTime?: string;

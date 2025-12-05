@@ -2,13 +2,14 @@ import type { AihumanConfigInfo as AihumanConfig, AihumanConfigQueryParams as Ai
 
 import type { ID, IDS, PageQuery, PageResult } from '#/api/common';
 
-import { commonExport } from '#/api/helper';
+import { commonExport, ContentTypeEnum } from '#/api/helper';
 import { requestClient } from '#/api/request';
 
 enum Api {
   root = '/aihuman/aihumanConfig',
   list = '/aihuman/aihumanConfig/list',
   export = '/aihuman/aihumanConfig/export',
+  asr = '/aihuman/aihumanConfig/asr',
 }
 
 /**
@@ -77,4 +78,21 @@ export function aihumanConfigSaveOrUpdate(data: Partial<AihumanConfig>, isUpdate
   } else {
     return aihumanConfigAdd(data);
   }
+}
+
+export function aihumanConfigAsrFile(id: ID, file: Blob | File) {
+  const form = new FormData();
+  form.append('audio', file);
+  return requestClient.postWithMsg<string>(`${Api.asr}/${id}`, form, {
+    headers: { 'Content-Type': ContentTypeEnum.FORM_DATA },
+    timeout: 30 * 1000,
+  });
+}
+
+export function aihumanConfigAsrBase64(id: ID, audioBase64: string) {
+  const body = new URLSearchParams();
+  body.set('audioBase64', audioBase64);
+  return requestClient.post<string>(`${Api.asr}/${id}`, body, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
 }
